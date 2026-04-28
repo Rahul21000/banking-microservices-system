@@ -1,0 +1,25 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-server
+
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/Rahul21000/config-repo.git # Replace with your Git repo URL
+          default-label: banking-loan-prod
+          username: Rahul21000
+          password: ${GITHUB_TOKEN}
+          clone-on-start: true
+  profiles:
+    active: git  # You can use local instead of git if you prefer a local repository
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+message: "This is a global message"

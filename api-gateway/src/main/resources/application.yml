@@ -1,0 +1,171 @@
+server:
+  port: 8080 # API Gateway Port
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+#      default-filters:
+#        - name: Retry
+#          args:
+#            retries: 3
+      routes:
+        - id: auth-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - StripPrefix=2
+#            - name: CircuitBreaker
+#              args:
+#                name: authCircuitBreaker
+#                fallbackUri: forward:/fallback/auth
+#            - name: RequestRateLimiter
+#              args:
+#                key-resolver: "#{@userKeyResolver}"
+
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - StripPrefix=2
+            - name: AuthFilter
+
+
+        - id: account-service
+          uri: lb://ACCOUNT-SERVICE
+          predicates:
+            - Path=/api/accounts/**
+          filters:
+            - name: AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: accountCircuitBreaker
+                fallbackUri: forward:/fallback/accounts
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+
+        - id: transaction-service
+          uri: lb://TRANSACTION-SERVICE
+          predicates:
+            - Path=api/transactions/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: transactionCircuitBreaker
+                fallbackUri: forward:/fallback/transactions
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+
+        - id: loan-service
+          uri: lb://LOAN-SERVICE
+          predicates:
+            - Path=/loans/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: loanCircuitBreaker
+                fallbackUri: forward:/fallback/loans
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/notification/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: notificationCircuitBreaker
+                fallbackUri: forward:/fallback/notification
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+    discovery:
+      client:
+        enabled: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081/auth  # OAuth2 Authorization Server
+
+# Resilience4J Circuit Breaker Config
+resilience4j:
+  circuitbreaker:
+    instances:
+      authCircuitBreaker:
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000ms
+        waitDurationInOpenState: 10000ms
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+
+      userServiceCircuitBreaker:
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000
+        waitDurationInOpenState: 5000
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+
+      accountCircuitBreaker:
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000
+        waitDurationInOpenState: 5000
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+
+      transactionCircuitBreaker:
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000
+        waitDurationInOpenState: 5000
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+
+      loanCircuitBreaker:
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000
+        waitDurationInOpenState: 5000
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+
+      notificationCircuitBreaker:
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000
+        waitDurationInOpenState: 5000
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+
+  # Rate Limiting Config
+  ratelimiter:
+    instances:
+      api-rate-limiter:
+        limitForPeriod: 5       # Max 5 requests per second
+        limitRefreshPeriod: 1s  # Reset every second
+        timeoutDuration: 0      # No waiting if limit is exceeded
+
+# Eureka Server Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty.http.client: DEBUG
+    io.github.resilience4j: DEBUG
